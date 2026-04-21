@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCENT — WRI India GHG Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- ── HERO ──────────────────────────────────────────────────────────── -->
+<div class="hero-wrap">
+  <div class="hero-content">
+    <div class="hero-logo">A↑</div>
+    <div class="hero-text-block">
+      <div class="hero-title">ASCENT</div>
+      <div class="hero-sub">Advanced Scenarios &amp; Carbon Emissions Navigation Tool — WRI India</div>
+    </div>
+    <div class="hero-badges" id="hero-badges">
+      <span class="badge">WRI India</span>
+      <span class="badge">IPCC 2019</span>
+      <span class="badge">GPC Protocol</span>
+    </div>
+  </div>
+</div>
+
+<div class="main-layout">
+  <!-- ══ SIDEBAR ════════════════════════════════════════════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-title">Data Entry</div>
+      <div class="sidebar-sub">Fill in activity data, then click Calculate</div>
+    </div>
+    <div class="sidebar-body">
+
+      <!-- Section A -->
+      <div class="sec-label">A. Location</div>
+      <div class="field-group">
+        <label>State / UT</label>
+        <select id="sel_state" onchange="loadDistricts()">
+          {% for s in states %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field-group">
+        <label>District</label>
+        <select id="sel_district" onchange="loadCities()"></select>
+      </div>
+      <div class="field-group">
+        <label>City / Town</label>
+        <select id="sel_city" onchange="updateClimate()"></select>
+      </div>
+      <div id="climate-badge" class="pill composite">Composite</div>
+      <div class="field-group">
+        <label>Governance Tier</label>
+        <select id="tier">
+          <option>City / ULB</option>
+          <option>District</option>
+          <option>State</option>
+          <option>Gram Panchayat</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field-group"><label>Population</label><input type="number" id="population" value="500000"></div>
+        <div class="field-group"><label>Area (km²)</label><input type="number" id="area_sqkm" value="150"></div>
+      </div>
+      <div class="field-row">
+        <div class="field-group"><label>Rainfall (mm/yr)</label><input type="number" id="avg_rain" value="700"></div>
+        <div class="field-group"><label>GDP (₹ Crore)</label><input type="number" id="city_gdp" value="5000"></div>
+      </div>
+      <hr>
+
+      <!-- Section B -->
+      <div class="sec-label">B. Timeline &amp; Growth</div>
+      <div class="field-row">
+        <div class="field-group"><label>Base Year</label><input type="number" id="base_year" value="2025"></div>
+        <div class="field-group"><label>Interim 1</label><input type="number" id="interim1" value="2030"></div>
+      </div>
+      <div class="field-row">
+        <div class="field-group"><label>Interim 2</label><input type="number" id="interim2" value="2040"></div>
+        <div class="field-group"><label>Target Year</label><input type="number" id="target_year" value="2050"></div>
+      </div>
+      <div class="field-group">
+        <label>Annual Growth Rate: <span id="gr_val">2.0</span>%</label>
+        <input type="range" id="growth_rate" min="0.5" max="10" step="0.1" value="2.0"
+               oninput="document.getElementById('gr_val').textContent=parseFloat(this.value).toFixed(1)">
+      </div>
+      <hr>
+
+      <!-- Sector 1: Buildings -->
+      <div class="sec-label">1. Buildings &amp; Energy</div>
+      <div class="formula-pill">E = Fuel_TJ × EF_CO₂ + CH₄×28 + N₂O×265</div>
+
+      <details class="expander"><summary>1.1 Residential</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Electricity (MWh)</label><input type="number" id="res_Electricity" value="0"></div>
+            <div class="field-group"><label>Firewood (t)</label><input type="number" id="res_Firewood" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Kerosene (kL)</label><input type="number" id="res_Kerosene" value="0"></div>
+            <div class="field-group"><label>PNG (t)</label><input type="number" id="res_PNG" value="0"></div>
+          </div>
+          <div class="field-group"><label>LPG (t)</label><input type="number" id="res_LPG" value="0"></div>
+        </div>
+      </details>
+
+      <details class="expander"><summary>1.2 Commercial</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Electricity (MWh)</label><input type="number" id="com_Electricity" value="0"></div>
+            <div class="field-group"><label>Firewood (t)</label><input type="number" id="com_Firewood" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Kerosene (kL)</label><input type="number" id="com_Kerosene" value="0"></div>
+            <div class="field-group"><label>PNG (t)</label><input type="number" id="com_PNG" value="0"></div>
+          </div>
+          <div class="field-group"><label>LPG (t)</label><input type="number" id="com_LPG" value="0"></div>
+        </div>
+      </details>
+
+      <details class="expander"><summary>1.3 Institutional</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Electricity (MWh)</label><input type="number" id="ins_Electricity" value="0"></div>
+            <div class="field-group"><label>Firewood (t)</label><input type="number" id="ins_Firewood" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Kerosene (kL)</label><input type="number" id="ins_Kerosene" value="0"></div>
+            <div class="field-group"><label>LPG (t)</label><input type="number" id="ins_LPG" value="0"></div>
+          </div>
+          <div class="field-group"><label>PNG (t)</label><input type="number" id="ins_PNG" value="0"></div>
+        </div>
+      </details>
+
+      <details class="expander"><summary>1.4 Industrial</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Electricity (MWh)</label><input type="number" id="ind_Electricity" value="0"></div>
+            <div class="field-group"><label>Coal (t)</label><input type="number" id="ind_Coal" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Diesel (kL)</label><input type="number" id="ind_Diesel" value="0"></div>
+            <div class="field-group"><label>PNG (t)</label><input type="number" id="ind_PNG" value="0"></div>
+          </div>
+        </div>
+      </details>
+      <hr>
+
+      <!-- Sector 2 -->
+      <div class="sec-label">2. Electricity Generation</div>
+      <details class="expander"><summary>2.1–2.5 Fossil &amp; Waste Energy</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Natural gas (TJ)</label><input type="number" id="ng_tj" value="0"></div>
+            <div class="field-group"><label>Coal (TJ)</label><input type="number" id="coal_tj" value="0"></div>
+          </div>
+          <div class="field-group"><label>MSW incineration (MWh)</label><input type="number" id="msw_pw" value="0"></div>
+        </div>
+      </details>
+      <hr>
+
+      <!-- Sector 3: Transport -->
+      <div class="sec-label">3. Transport</div>
+      <details class="expander"><summary>3A Road</summary>
+        <div class="expander-body">
+          <div class="formula-pill">E = Σ Fuel × EF (IPCC Eq.3.2.1)</div>
+          <div class="field-row">
+            <div class="field-group"><label>Petrol (kL)</label><input type="number" id="t_pet" value="0"></div>
+            <div class="field-group"><label>Diesel (kL)</label><input type="number" id="t_die" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>CNG (t)</label><input type="number" id="t_cng" value="0"></div>
+            <div class="field-group"><label>Auto LPG (t)</label><input type="number" id="t_alpg" value="0"></div>
+          </div>
+          <div class="field-group"><label>EV charging (MWh)</label><input type="number" id="t_elec" value="0"></div>
+        </div>
+      </details>
+      <details class="expander"><summary>3A Rail</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Diesel (kL)</label><input type="number" id="r_die" value="0"></div>
+            <div class="field-group"><label>Electricity (MWh)</label><input type="number" id="r_elec" value="0"></div>
+          </div>
+        </div>
+      </details>
+      <details class="expander"><summary>3A Water &amp; Aviation</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Waterborne Petrol (kL)</label><input type="number" id="w_pet" value="0"></div>
+            <div class="field-group"><label>Waterborne Diesel (kL)</label><input type="number" id="w_die" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Aviation Gas (kL)</label><input type="number" id="av_gas" value="0"></div>
+            <div class="field-group"><label>Jet Kerosene (kL)</label><input type="number" id="av_jet" value="0"></div>
+          </div>
+        </div>
+      </details>
+      <hr>
+
+      <!-- Sector 4: Solid Waste -->
+      <div class="sec-label">4. Solid Waste</div>
+      <div class="formula-pill">CH₄ = [ΣCH₄_gen − Recovery] × (1 − OX)</div>
+      <details class="expander"><summary>4.1–4.4 Generation &amp; Management</summary>
+        <div class="expander-body">
+          <div class="field-group"><label>MSW generation (t/day)</label><input type="number" id="sw_tot" value="0"></div>
+          <div class="field-group"><label>Landfill managed (%)</label><input type="number" id="sw_lfm" value="50" min="0" max="100"></div>
+          <div class="field-group"><label>Landfill unmanaged (%)</label><input type="number" id="sw_lfu" value="20" min="0" max="100"></div>
+          <div class="field-group"><label>Incineration (%)</label><input type="number" id="sw_inc" value="5" min="0" max="100"></div>
+          <div class="field-group"><label>Composting/AD (%)</label><input type="number" id="sw_com" value="10" min="0" max="100"></div>
+        </div>
+      </details>
+      <hr>
+
+      <!-- Sector 5: Wastewater -->
+      <div class="sec-label">5. Wastewater</div>
+      <div class="formula-pill">CH₄ = TOW × EF_j  |  N₂O = N_eff × EF × 44/28</div>
+      <details class="expander"><summary>5.1–5.9 Treatment</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>BOD (g/person/day)</label><input type="number" id="ww_bod" value="34"></div>
+            <div class="field-group"><label>Protein (kg/person/yr)</label><input type="number" id="ww_prot" value="21.54"></div>
+          </div>
+          <div class="field-group"><label>Aerobic treatment (%)</label><input type="number" id="ww_aer" value="30"></div>
+          <div class="field-group"><label>Anaerobic (UASB) (%)</label><input type="number" id="ww_uasb" value="20"></div>
+          <div class="field-group"><label>Septic tanks (%)</label><input type="number" id="ww_sep" value="20"></div>
+          <div class="field-group"><label>Open drain (%)</label><input type="number" id="ww_open" value="30"></div>
+        </div>
+      </details>
+      <hr>
+
+      <!-- Sector 6: AFOLU -->
+      <div class="sec-label">6. AFOLU</div>
+      <details class="expander"><summary>6.1 Livestock (head)</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Dairy cattle</label><input type="number" id="af_dc" value="0"></div>
+            <div class="field-group"><label>Non-dairy cattle</label><input type="number" id="af_ndc" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Buffalo (dairy)</label><input type="number" id="af_bufd" value="0"></div>
+            <div class="field-group"><label>Buffalo (non-dairy)</label><input type="number" id="af_bufnd" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Sheep</label><input type="number" id="af_sheep" value="0"></div>
+            <div class="field-group"><label>Goats</label><input type="number" id="af_goat" value="0"></div>
+          </div>
+        </div>
+      </details>
+      <details class="expander"><summary>6.2–6.8 Land Use (ha)</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Dense forest</label><input type="number" id="af_fd" value="0"></div>
+            <div class="field-group"><label>Moderate forest</label><input type="number" id="af_fm" value="0"></div>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Open forest</label><input type="number" id="af_fo" value="0"></div>
+            <div class="field-group"><label>Rice paddies (ha)</label><input type="number" id="af_wet" value="0"></div>
+          </div>
+        </div>
+      </details>
+      <hr>
+
+      <!-- Sector 7: IPPU -->
+      <div class="sec-label">7. IPPU</div>
+      <details class="expander"><summary>7.1–7.4 Minerals</summary>
+        <div class="expander-body">
+          <div class="field-group"><label>Clinker production (t)</label><input type="number" id="ip_clink" value="0"></div>
+          <div class="field-group">
+            <label>Cement type</label>
+            <select id="ip_cfrac">
+              <option>OPC (0.95)</option>
+              <option>PPC (0.75)</option>
+              <option>PSC (0.65)</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <div class="field-group"><label>Lime production (t)</label><input type="number" id="ip_lime" value="0"></div>
+            <div class="field-group"><label>Limestone (t)</label><input type="number" id="ip_ls" value="0"></div>
+          </div>
+        </div>
+      </details>
+      <details class="expander"><summary>7.5–7.9 Chemicals</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>Ammonia (t)</label><input type="number" id="ip_nh3" value="0"></div>
+            <div class="field-group"><label>Nitric acid (t)</label><input type="number" id="ip_hno3" value="0"></div>
+          </div>
+        </div>
+      </details>
+      <details class="expander"><summary>7.15–7.18 Steel &amp; Metals</summary>
+        <div class="expander-body">
+          <div class="field-row">
+            <div class="field-group"><label>BOF steel (t)</label><input type="number" id="ip_bof" value="0"></div>
+            <div class="field-group"><label>EAF steel (t)</label><input type="number" id="ip_eaf" value="0"></div>
+          </div>
+        </div>
+      </details>
+      <hr>
+
+      <!-- Scenario Strategies -->
+      <div class="sec-label">Scenario Strategies</div>
+      <details class="expander"><summary>Existing &amp; Planned (EP)</summary>
+        <div class="expander-body" id="ep-sliders"></div>
+      </details>
+      <details class="expander"><summary>High Ambition (HA)</summary>
+        <div class="expander-body" id="ha-sliders"></div>
+      </details>
+      <hr>
+
+      <!-- Net Zero -->
+      <div class="sec-label">Net-Zero Target</div>
+      <div class="field-group">
+        <label>% reduction from BAU: <span id="tpct_val">60</span>%</label>
+        <input type="range" id="target_pct" min="0" max="100" step="5" value="60"
+               oninput="document.getElementById('tpct_val').textContent=this.value">
+      </div>
+      <hr>
+      <button class="btn-calc" onclick="runCalculation()">▶ Calculate Emissions</button>
+
+    </div><!-- /sidebar-body -->
+  </aside>
+
+  <!-- ══ MAIN CONTENT ════════════════════════════════════════════════════ -->
+  <main class="content">
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Base Emissions</div>
+        <div class="kpi-val" id="kpi-base">—</div>
+        <div class="kpi-delta">Mt CO₂e</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Per Capita</div>
+        <div class="kpi-val" id="kpi-capita">—</div>
+        <div class="kpi-delta">t CO₂e / person</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Per km²</div>
+        <div class="kpi-val" id="kpi-sqkm">—</div>
+        <div class="kpi-delta">kt CO₂e / km²</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">BAU Target Year</div>
+        <div class="kpi-val" id="kpi-bau">—</div>
+        <div class="kpi-delta">Mt CO₂e</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">High Ambition</div>
+        <div class="kpi-val" id="kpi-ha">—</div>
+        <div class="kpi-delta">Mt CO₂e</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">HA Investment</div>
+        <div class="kpi-val" id="kpi-inv">—</div>
+        <div class="kpi-delta">₹ Crore est.</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab active" onclick="switchTab('scenarios',this)">📈 Scenarios</button>
+      <button class="tab" onclick="switchTab('breakdown',this)">🔍 Breakdown</button>
+      <button class="tab" onclick="switchTab('budget',this)">💰 Budget &amp; Cost</button>
+      <button class="tab" onclick="switchTab('targets',this)">🎯 Targets</button>
+      <button class="tab" onclick="switchTab('export',this)">⬇ Export</button>
+    </div>
+
+    <!-- Tab: Scenarios -->
+    <div id="tab-scenarios" class="tab-content active">
+      <div id="chart-traj" class="chart-box">
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <p>Enter activity data and click <strong>Calculate</strong> to generate your emissions trajectory</p>
+        </div>
+      </div>
+      <div class="sec-hdr">Milestone Summary</div>
+      <div class="table-wrapper">
+        <div id="milestone-table">
+          <div class="empty-state" style="padding:24px"><p>No results yet</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: Breakdown -->
+    <div id="tab-breakdown" class="tab-content">
+      <div class="two-col">
+        <div id="chart-pie" class="chart-box"></div>
+        <div id="chart-bar" class="chart-box"></div>
+      </div>
+      <div class="sec-hdr">Sub-sector Detail</div>
+      <div class="table-wrapper" id="sector-detail-table"></div>
+    </div>
+
+    <!-- Tab: Budget -->
+    <div id="tab-budget" class="tab-content">
+      <div id="chart-budget" class="chart-box"></div>
+      <div class="sec-hdr">Investment Breakdown — High Ambition Scenario</div>
+      <div class="table-wrapper" id="budget-table"></div>
+    </div>
+
+    <!-- Tab: Targets -->
+    <div id="tab-targets" class="tab-content">
+      <div class="sec-hdr">Net-Zero Pathway — Milestone Tracking</div>
+      <div class="table-wrapper" id="target-track-table"></div>
+      <div class="sec-hdr" style="margin-top:24px">Mitigation Strategy Reference</div>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead><tr><th>Sector</th><th>Key Mitigation Strategies</th></tr></thead>
+          <tbody>
+            <tr><td>Buildings</td><td>Star-rated appliances, LED lighting, solar rooftops, BLDC fans, building codes</td></tr>
+            <tr><td>Electricity</td><td>Transition fossil → RE (solar, wind, hydel); smart grids</td></tr>
+            <tr><td>Transport</td><td>Fuel switch; ICE → EV; mode shift to public transport; NMT infrastructure</td></tr>
+            <tr><td>Solid Waste</td><td>Composting, anaerobic digestion, recycling, landfill gas capture</td></tr>
+            <tr><td>Wastewater</td><td>Treatment switch (aerobic → UASB); biogas end-use; zero-liquid discharge</td></tr>
+            <tr><td>AFOLU</td><td>Feeding supplements; community biogas; afforestation; soil carbon sequestration</td></tr>
+            <tr><td>IPPU</td><td>Clinker-cement ratio; CCS; electrification; green hydrogen; low-carbon steel</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab: Export -->
+    <div id="tab-export" class="tab-content">
+      <div class="sec-hdr">Download Scenario Data</div>
+      <div class="export-btns">
+        <button class="btn-dl" onclick="downloadCSV()">⬇ Download CSV</button>
+        <button class="btn-dl excel" onclick="downloadExcel()">📊 Download Excel (.xlsx)</button>
+        <a class="btn-dl json-btn" href="/api/template">⬇ JSON Template</a>
+      </div>
+      <div class="sec-hdr" style="margin-top:20px">Year-by-Year Scenario Table</div>
+      <div class="table-wrapper" id="export-table"></div>
+    </div>
+
+    <div class="footer">
+      <strong>ASCENT</strong> &nbsp;·&nbsp; WRI India &nbsp;·&nbsp;
+      IPCC 2019 Guidelines &amp; GPC Protocol &nbsp;·&nbsp;
+      Emission Factors: CEA 2023 · IPCC AR6 GWPs
+    </div>
+  </main>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+  const INDIA_CITIES = {{ cities | tojson }};
+  const SECTORS = {{ sectors | tojson }};
+  window.onload = function() {
+    loadDistricts();
+    buildSliders();
+  };
+</script>
+</body>
+</html>
